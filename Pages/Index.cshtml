@@ -1,0 +1,39 @@
+﻿@page "/Index"
+@using Webhook.Navferty
+@inject IRequestRepository RequestRepository
+
+@{
+    ViewData["Title"] = "Recent Web Requests";
+    var requests = await RequestRepository.GetRequests(DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+}
+
+<h3>Recent Web Requests</h3>
+
+@if (requests == null || !requests.Any())
+{
+    <p>No requests found.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Path</th>
+                <th>Method</th>
+                <th>Created At</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var request in requests)
+            {
+                <tr>
+                    <td><a href="/requestdetails/@request.Id">@request.Id</a></td>
+                    <td>@request.Path</td>
+                    <td>@request.Method</td>
+                    <td>@request.CreatedAt</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

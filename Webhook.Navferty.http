@@ -1,0 +1,23 @@
+@Webhook.Navferty_HostAddress = http://localhost:5131
+
+### Get Request by ID
+GET {{Webhook.Navferty_HostAddress}}/requests/{id}
+Accept: application/json
+
+###
+
+### Query Requests
+GET {{Webhook.Navferty_HostAddress}}/requests?from={from}&to={to}
+Accept: application/json
+
+###
+
+### Catch-All Endpoint
+POST {{Webhook.Navferty_HostAddress}}/any/path
+Content-Type: application/json
+
+{
+  "example": "data"
+}
+
+###

@@ -1,0 +1,43 @@
+﻿@page "/requestdetails/{id:guid}"
+@using Webhook.Navferty
+@inject IRequestRepository RequestRepository
+@{
+    ViewData["Title"] = "Request Details";
+    var requestIdRaw = RouteData.Values["id"];
+    if (!Guid.TryParse(requestIdRaw?.ToString(), out var requestId))
+        throw new ArgumentException("Invalid request id.");
+
+    var request = await RequestRepository.GetRequest(requestId);
+}
+
+<h3>Request Details</h3>
+
+@if (request == null)
+{
+    <p>Request not found.</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-2">Id</dt>
+        <dd class="col-sm-10">@request.Id</dd>
+
+        <dt class="col-sm-2">IP Address</dt>
+        <dd class="col-sm-10">@request.IpAddress</dd>
+
+        <dt class="col-sm-2">Path</dt>
+        <dd class="col-sm-10">@request.Path</dd>
+
+        <dt class="col-sm-2">Method</dt>
+        <dd class="col-sm-10">@request.Method</dd>
+
+        <dt class="col-sm-2">Query String</dt>
+        <dd class="col-sm-10">@request.QueryString</dd>
+
+        <dt class="col-sm-2">Body</dt>
+        <dd class="col-sm-10"><pre>@request.Body</pre></dd>
+
+        <dt class="col-sm-2">Created At</dt>
+        <dd class="col-sm-10">@request.CreatedAt</dd>
+    </dl>
+}
