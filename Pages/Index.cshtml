@@ -1,10 +1,13 @@
 ﻿@page "/Index"
 @using Webhook.Navferty
 @inject IRequestRepository RequestRepository
+@using System.Net
+@using Ganss.Xss
 
 @{
     ViewData["Title"] = "Recent Web Requests";
     var requests = await RequestRepository.GetRequests(DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+    var sanitizer = new HtmlSanitizer();
 }
 
 <h3>Recent Web Requests</h3>
@@ -29,7 +32,7 @@ else
             {
                 <tr>
                     <td><a href="/requestdetails/@request.Id">@request.Id</a></td>
-                    <td>@request.Path</td>
+                    <td>@sanitizer.Sanitize(WebUtility.UrlDecode(request.Path))</td>
                     <td>@request.Method</td>
                     <td>@request.CreatedAt</td>
                 </tr>

@@ -1,6 +1,9 @@
 ﻿@page "/requestdetails/{id:guid}"
 @using Webhook.Navferty
 @inject IRequestRepository RequestRepository
+@using System.Net
+@using Ganss.Xss
+
 @{
     ViewData["Title"] = "Request Details";
     var requestIdRaw = RouteData.Values["id"];
@@ -8,6 +11,7 @@
         throw new ArgumentException("Invalid request id.");
 
     var request = await RequestRepository.GetRequest(requestId);
+    var sanitizer = new HtmlSanitizer();
 }
 
 <h3>Request Details</h3>
@@ -26,16 +30,16 @@ else
         <dd class="col-sm-10">@request.IpAddress</dd>
 
         <dt class="col-sm-2">Path</dt>
-        <dd class="col-sm-10">@request.Path</dd>
+        <dd class="col-sm-10">@sanitizer.Sanitize(WebUtility.UrlDecode(request.Path))</dd>
 
         <dt class="col-sm-2">Method</dt>
         <dd class="col-sm-10">@request.Method</dd>
 
         <dt class="col-sm-2">Query String</dt>
-        <dd class="col-sm-10">@request.QueryString</dd>
+        <dd class="col-sm-10">@sanitizer.Sanitize(WebUtility.UrlDecode(request.QueryString))</dd>
 
         <dt class="col-sm-2">Body</dt>
-        <dd class="col-sm-10"><pre>@request.Body</pre></dd>
+        <dd class="col-sm-10"><pre>@sanitizer.Sanitize(request.Body)</pre></dd>
 
         <dt class="col-sm-2">Created At</dt>
         <dd class="col-sm-10">@request.CreatedAt</dd>
