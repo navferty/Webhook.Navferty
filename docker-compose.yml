@@ -1,0 +1,23 @@
+﻿services:
+  webhook:
+    image: navferty/webhook:latest
+    container_name: webhook
+    ports:
+      - "8088:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: webhook
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
