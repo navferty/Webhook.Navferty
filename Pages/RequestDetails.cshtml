@@ -7,10 +7,14 @@
 @{
     ViewData["Title"] = "Request Details";
     var requestIdRaw = RouteData.Values["id"];
+    var tenantIdRaw = Request.Query["tenantId"];
     if (!Guid.TryParse(requestIdRaw?.ToString(), out var requestId))
         throw new ArgumentException("Invalid request id.");
 
-    var request = await RequestRepository.GetRequest(requestId);
+    if (!Guid.TryParse(tenantIdRaw, out var tenantId))
+        throw new ArgumentException("Invalid tenant id.");
+
+    var request = await RequestRepository.GetRequest(tenantId, requestId);
     var sanitizer = new HtmlSanitizer();
 }
 
@@ -34,6 +38,9 @@ else
 
         <dt class="col-sm-2">Method</dt>
         <dd class="col-sm-10">@request.Method</dd>
+
+        <dt class="col-sm-2">Headers</dt>
+        <dd class="col-sm-10"><pre>@sanitizer.Sanitize(request.Headers)</pre></dd>
 
         <dt class="col-sm-2">Query String</dt>
         <dd class="col-sm-10">@sanitizer.Sanitize(WebUtility.UrlDecode(request.QueryString))</dd>

@@ -40,32 +40,33 @@ app.MapRazorPages();
 
 app.MapGet("/", async context =>
 {
-    context.Response.Redirect("/Index");
+    var tenantId = Guid.NewGuid();
+    context.Response.Redirect("/Index?tenantId=" + tenantId);
 });
 
-app.MapGet("/requests/{id:guid}", async (Guid id, IRequestRepository repository) =>
+app.MapGet("{tenantId:guid}/requests/{id:guid}", async (Guid tenantId, Guid id, IRequestRepository repository) =>
 {
-    var request = await repository.GetRequest(id);
+    var request = await repository.GetRequest(tenantId, id);
     return request is not null ? Results.Ok(request) : Results.NotFound();
 })
 .WithName("GetRequestById")
 .WithOpenApi();
 
-app.MapGet("/requests", async (DateTimeOffset from, DateTimeOffset to, IRequestRepository repository) =>
+app.MapGet("{tenantId:guid}/requests", async (Guid tenantId, DateTimeOffset from, DateTimeOffset to, IRequestRepository repository) =>
 {
-    var requests = await repository.GetRequests(from, to);
+    var requests = await repository.GetRequests(tenantId, from, to);
     return Results.Ok(requests);
 })
 .WithName("GetRequests")
 .WithOpenApi();
 
-app.Map("/{**catchAll}", async (HttpRequest request, IRequestRepository repository, CancellationToken ct) =>
+app.Map("{tenantId:guid}/{**catchAll}", async (Guid tenantId, HttpRequest request, IRequestRepository repository, CancellationToken ct) =>
 {
     // Skip favicon requests
     if (request.Path.Value?.EndsWith("favicon.ico") == true)
         return Results.Ok();
 
-    await repository.SaveRequest(request, ct);
+    await repository.SaveRequest(request, tenantId, ct);
     return Results.Ok();
 })
 .WithName("CatchAll")

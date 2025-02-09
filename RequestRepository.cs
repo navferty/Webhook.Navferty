@@ -1,21 +1,22 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.Text;
+using System.Text.Json;
 
 namespace Webhook.Navferty;
 
 public interface IRequestRepository
 {
-    Task SaveRequest(HttpRequest request, CancellationToken cancellationToken);
+    Task SaveRequest(HttpRequest request, Guid tenantId, CancellationToken cancellationToken);
 
-    Task<RequestModel> GetRequest(Guid id);
+    Task<RequestModel> GetRequest(Guid tenantId, Guid requestId);
 
-    Task<IEnumerable<RequestDto>> GetRequests(DateTimeOffset from, DateTimeOffset to);
+    Task<IEnumerable<RequestDto>> GetRequests(Guid tenantId, DateTimeOffset from, DateTimeOffset to);
 }
 
-public class RequestRepository(AppDbContext appDbContext)
+public sealed class RequestRepository(AppDbContext appDbContext)
     : IRequestRepository
 {
-    public async Task SaveRequest(HttpRequest request, CancellationToken cancellationToken)
+    public async Task SaveRequest(HttpRequest request, Guid tenantId, CancellationToken cancellationToken)
     {
         string body;
         if (request.HasFormContentType)
@@ -44,7 +45,16 @@ public class RequestRepository(AppDbContext appDbContext)
                 sb.Append("\r\n");
             }
 
-            body = sb.ToString().TrimEnd('\n').TrimEnd('\r');
+            if (sb.Length > 0)
+                sb.Length -= 2;
+
+            body = sb.ToString();
+        }
+        else if (request.ContentType?.StartsWith("application/json") == true)
+        {
+            using var reader = new StreamReader(request.Body);
+            var json = await reader.ReadToEndAsync(cancellationToken);
+            body = JsonSerializer.Serialize(JsonDocument.Parse(json), new JsonSerializerOptions { WriteIndented = true });
         }
         else
         {
@@ -52,16 +62,30 @@ public class RequestRepository(AppDbContext appDbContext)
             body = await reader.ReadToEndAsync(cancellationToken);
         }
 
+        var headers = new StringBuilder();
+        foreach (var (key, value) in request.Headers)
+        {
+            headers.Append(key);
+            headers.Append(": ");
+            headers.Append(value);
+            headers.Append("\r\n");
+        }
+
+        if (headers.Length > 0)
+            headers.Length -= 2;
+
         var ip = request.HttpContext.Connection.RemoteIpAddress?.ToString()
             ?? request.HttpContext.Connection.LocalIpAddress?.ToString()
             ?? throw new InvalidOperationException("Cannot determine IP address");
         var requestModel = new RequestModel
         {
             Id = Guid.NewGuid(),
+            TenantId = tenantId,
             IpAddress = ip,
             Path = request.Path,
             Method = request.Method,
             QueryString = request.QueryString.ToString(),
+            Headers = headers.ToString(),
             Body = body,
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -70,28 +94,30 @@ public class RequestRepository(AppDbContext appDbContext)
         await appDbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<RequestModel> GetRequest(Guid id)
+    public async Task<RequestModel> GetRequest(Guid tenantId, Guid requestId)
     {
         return await appDbContext.Requests
             .Select(r => new RequestModel
             {
                 Id = r.Id,
                 IpAddress = r.IpAddress,
+                TenantId = r.TenantId,
                 Path = r.Path,
                 Method = r.Method,
                 QueryString = r.QueryString,
+                Headers = r.Headers,
                 Body = r.Body,
                 CreatedAt = r.CreatedAt
             })
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == id)
+            .FirstOrDefaultAsync(x => x.Id == requestId && x.TenantId == tenantId)
             ?? throw new KeyNotFoundException();
     }
 
-    public async Task<IEnumerable<RequestDto>> GetRequests(DateTimeOffset from, DateTimeOffset to)
+    public async Task<IEnumerable<RequestDto>> GetRequests(Guid tenantId, DateTimeOffset from, DateTimeOffset to)
     {
         return await appDbContext.Requests
-            .Where(r => r.CreatedAt >= from && r.CreatedAt <= to)
+            .Where(r => r.CreatedAt >= from && r.CreatedAt <= to && r.TenantId == tenantId)
             .Select(r => new RequestDto
             {
                 Id = r.Id,
@@ -103,25 +129,25 @@ public class RequestRepository(AppDbContext appDbContext)
     }
 }
 
-public class AppDbContext : DbContext
+public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-
     public DbSet<RequestModel> Requests { get; set; }
 }
 
-public class RequestModel
+public sealed class RequestModel
 {
     public required Guid Id { get; set; }
+    public required Guid TenantId { get; set; }
     public required string Path { get; set; }
     public required string IpAddress { get; set; }
     public required string Method { get; set; }
     public required string QueryString { get; set; }
+    public required string Headers { get; set; }
     public required string Body { get; set; }
     public required DateTimeOffset CreatedAt { get; set; }
 }
 
-public class RequestDto
+public sealed class RequestDto
 {
     public required Guid Id { get; set; }
     public required string Path { get; set; }

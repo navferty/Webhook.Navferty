@@ -5,10 +5,39 @@
 @using Ganss.Xss
 
 @{
+    var tenantIdString = Request.Query["tenantId"];
+    if (string.IsNullOrWhiteSpace(tenantIdString)
+        || !Guid.TryParse(tenantIdString, out var tenantId)
+        || tenantId == Guid.Empty)
+    {
+        throw new ArgumentException("TenantId is required");
+    }
+
     ViewData["Title"] = "Recent Web Requests";
-    var requests = await RequestRepository.GetRequests(DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+    var requests = await RequestRepository.GetRequests(tenantId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
     var sanitizer = new HtmlSanitizer();
 }
+
+<h1>Webhook</h1>
+
+<p>
+    This is a simple webhook service that logs all incoming requests.
+</p>
+
+<p>
+    To make a request, use the following URL:
+    <code>https://webhook.navferty.com/@tenantId</code>
+</p>
+
+<p>
+    You can construct any url and use any HTTP method, for example:
+    <code>POST https://webhook.navferty.com/@tenantId/any/path/you/want</code>
+</p>
+
+<p>
+    The service will log the request, including the path, method, query string, headers, and body.
+    You can view the recent requests below. Keep the Id @tenantId to view your requests.
+</p>
 
 <h3>Recent Web Requests</h3>
 
@@ -31,7 +60,7 @@ else
             @foreach (var request in requests)
             {
                 <tr>
-                    <td><a href="/requestdetails/@request.Id">@request.Id</a></td>
+                    <td><a href="/requestdetails/@request.Id?tenantId=@tenantId">@request.Id</a></td>
                     <td>@sanitizer.Sanitize(WebUtility.UrlDecode(request.Path))</td>
                     <td>@request.Method</td>
                     <td>@request.CreatedAt</td>
