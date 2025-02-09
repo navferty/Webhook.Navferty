@@ -74,7 +74,8 @@ public sealed class RequestRepository(AppDbContext appDbContext)
         if (headers.Length > 0)
             headers.Length -= 2;
 
-        var ip = request.HttpContext.Connection.RemoteIpAddress?.ToString()
+        var ip = request.Headers["X-Forwarded-For"].FirstOrDefault()
+            ?? request.HttpContext.Connection.RemoteIpAddress?.ToString()
             ?? request.HttpContext.Connection.LocalIpAddress?.ToString()
             ?? throw new InvalidOperationException("Cannot determine IP address");
         var requestModel = new RequestModel
