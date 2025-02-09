@@ -8,7 +8,7 @@ public interface IRequestRepository
 {
     Task SaveRequest(HttpRequest request, Guid tenantId, CancellationToken cancellationToken);
 
-    Task<RequestModel> GetRequest(Guid tenantId, Guid requestId);
+    Task<RequestModel?> GetRequest(Guid tenantId, Guid requestId);
 
     Task<IEnumerable<RequestDto>> GetRequests(Guid tenantId, DateTimeOffset from, DateTimeOffset to);
 }
@@ -94,7 +94,7 @@ public sealed class RequestRepository(AppDbContext appDbContext)
         await appDbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<RequestModel> GetRequest(Guid tenantId, Guid requestId)
+    public async Task<RequestModel?> GetRequest(Guid tenantId, Guid requestId)
     {
         return await appDbContext.Requests
             .Select(r => new RequestModel
@@ -110,8 +110,7 @@ public sealed class RequestRepository(AppDbContext appDbContext)
                 CreatedAt = r.CreatedAt
             })
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == requestId && x.TenantId == tenantId)
-            ?? throw new KeyNotFoundException();
+            .FirstOrDefaultAsync(x => x.Id == requestId && x.TenantId == tenantId);
     }
 
     public async Task<IEnumerable<RequestDto>> GetRequests(Guid tenantId, DateTimeOffset from, DateTimeOffset to)

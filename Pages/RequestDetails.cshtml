@@ -15,6 +15,14 @@
         throw new ArgumentException("Invalid tenant id.");
 
     var request = await RequestRepository.GetRequest(tenantId, requestId);
+    if (request == null)
+    {
+        // 404
+        Response.StatusCode = 404;
+        await Response.WriteAsync("Not found");
+        return;
+    }
+
     var sanitizer = new HtmlSanitizer();
 }
 
