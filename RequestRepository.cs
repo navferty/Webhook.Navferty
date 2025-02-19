@@ -128,29 +128,3 @@ public sealed class RequestRepository(AppDbContext appDbContext)
             .ToListAsync();
     }
 }
-
-public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
-{
-    public DbSet<RequestModel> Requests { get; set; }
-}
-
-public sealed class RequestModel
-{
-    public required Guid Id { get; set; }
-    public required Guid TenantId { get; set; }
-    public required string Path { get; set; }
-    public required string IpAddress { get; set; }
-    public required string Method { get; set; }
-    public required string QueryString { get; set; }
-    public required string Headers { get; set; }
-    public required string Body { get; set; }
-    public required DateTimeOffset CreatedAt { get; set; }
-}
-
-public sealed class RequestDto
-{
-    public required Guid Id { get; set; }
-    public required string Path { get; set; }
-    public required string Method { get; set; }
-    public required DateTimeOffset CreatedAt { get; set; }
-}

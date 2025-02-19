@@ -1,0 +1,93 @@
+﻿@page "/ConfigureResponses"
+@model Webhook.Navferty.Pages.ConfigureResponsesModel
+@using System.Net
+@using Ganss.Xss
+
+@{
+    ViewData["Title"] = "Configure Responses";
+    var sanitizer = new HtmlSanitizer();
+}
+
+<h3>Configure Responses</h3>
+
+<div id="responses-container">
+    @foreach (var response in Model.Responses)
+    {
+        <div class="response-item">
+            <input type="hidden" name="tenantId" value="@Model.TenantId" />
+            <input type="text" name="path" value="@response.Path" placeholder="Path" />
+            <textarea name="body" placeholder="JSON Body">@response.Body</textarea>
+            <button type="button" onclick="saveResponse(this)">Save Changes</button>
+            <button type="button" onclick="duplicateResponse(this)">Duplicate</button>
+            <button type="button" onclick="removeResponse(this, '@response.Path')">Remove</button>
+        </div>
+    }
+</div>
+
+<div>
+    <button type="button" onclick="addNewResponse()">Add New Response</button>
+</div>
+
+<script>
+    async function saveResponse(button) {
+        var item = button.closest(".response-item");
+        var tenantId = item.querySelector('input[name="tenantId"]').value;
+        var path = item.querySelector('input[name="path"]').value;
+        var body = item.querySelector('textarea[name="body"]').value;
+
+        var response = await fetch('/@Model.TenantId/responses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ tenantId, path, body })
+        });
+
+        if (response.ok) {
+            alert('Response saved successfully');
+        } else {
+            alert('Failed to save response');
+        }
+    }
+
+    function addNewResponse() {
+        var container = document.getElementById("responses-container");
+        var newPath = "/";
+        var newBody = "{ }";
+
+        var newItem = document.createElement("div");
+        newItem.className = "response-item";
+        newItem.innerHTML = `
+            <input type="hidden" name="tenantId" value="@Model.TenantId" />
+            <input type="text" name="path" value="${newPath}" placeholder="Path" />
+            <textarea name="body" placeholder="JSON Body">${newBody}</textarea>
+            <button type="button" onclick="saveResponse(this)">Save Changes</button>
+            <button type="button" onclick="duplicateResponse(this)">Duplicate</button>
+            <button type="button" onclick="removeResponse(this, '')">Remove</button>
+        `;
+        container.appendChild(newItem);
+    }
+
+    function duplicateResponse(button) {
+        var item = button.closest(".response-item");
+        var container = document.getElementById("responses-container");
+        var newItem = item.cloneNode(true);
+        container.appendChild(newItem);
+    }
+
+    async function removeResponse(button, path) {
+        var item = button.closest(".response-item");
+        var tenantId = item.querySelector('input[name="tenantId"]').value;
+
+        var response = await fetch(`/@Model.TenantId/responses/${tenantId}/${encodeURIComponent(path)}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            item.remove();
+            alert('Response removed successfully');
+        } else {
+            alert('Failed to remove response');
+        }
+    }
+</script>

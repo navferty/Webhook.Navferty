@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Webhook.Navferty;
 
@@ -10,6 +11,7 @@ builder.Configuration.AddEnvironmentVariables("WEBHOOK_");
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IRequestRepository, RequestRepository>();
+builder.Services.AddScoped<ResponseRepository>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -40,6 +42,7 @@ app.MapRazorPages();
 
 app.MapGet("/", async context =>
 {
+    await Task.CompletedTask;
     var tenantId = Guid.NewGuid();
     context.Response.Redirect("/Index?tenantId=" + tenantId);
 });
@@ -60,16 +63,29 @@ app.MapGet("{tenantId:guid}/requests", async (Guid tenantId, DateTimeOffset from
 .WithName("GetRequests")
 .WithOpenApi();
 
-app.Map("{tenantId:guid}/{**catchAll}", async (Guid tenantId, HttpRequest request, IRequestRepository repository, CancellationToken ct) =>
+app.MapPost("{tenantId:guid}/responses", async (Guid tenantId, [FromBody] CreateResponseDto dto, ResponseRepository responseRepo, HttpRequest request) =>
+{
+    await responseRepo.ConfigureResponse(tenantId, dto.Path ?? "/", dto.Body);
+    return Results.Created($"/{tenantId}/responses", null);
+});
+
+app.Map("{tenantId:guid}/{**catchAll}", async (Guid tenantId, HttpRequest request, IRequestRepository repository, ResponseRepository responseRepo, CancellationToken ct) =>
 {
     // Skip favicon requests
     if (request.Path.Value?.EndsWith("favicon.ico") == true)
         return Results.Ok();
 
     await repository.SaveRequest(request, tenantId, ct);
-    return Results.Ok();
+
+    var response = await responseRepo.FindResponse(tenantId, request.Path.Value ?? "/");
+
+    return response is not null
+        ? Results.Json(response.Body)
+        : Results.Json(new { message = "No response configured" });
 })
 .WithName("CatchAll")
 .WithOpenApi();
 
 app.Run();
+
+public record CreateResponseDto(string Path, string Body);
