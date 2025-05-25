@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using Webhook.Navferty.Data;
 
-namespace Webhook.Navferty.Dtos;
+namespace Webhook.Navferty.Requests;
 
 public record CreateResponseDto(string Path, string Body, ResponseContentType ContentType);
 

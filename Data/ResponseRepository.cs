@@ -4,7 +4,7 @@ namespace Webhook.Navferty.Data;
 
 public sealed class ResponseRepository(AppDbContext context)
 {
-    public async Task ConfigureResponse(Guid tenantId, string path, string body, ResponseContentType contentType)
+    public async Task ConfigureResponse(Guid tenantId, string path, string body, ResponseContentType contentType, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(body))
             throw new ArgumentException("Value cannot be null or whitespace.", nameof(body));
@@ -13,14 +13,14 @@ public sealed class ResponseRepository(AppDbContext context)
         normalizedPath = TrimTenantId(tenantId, normalizedPath);
 
         var existingResponse = await context.Responses
-            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Path == normalizedPath);
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Path == normalizedPath, cancellationToken);
 
         if (existingResponse is not null)
         {
             existingResponse.Body = body;
             existingResponse.LastModifiedAt = DateTimeOffset.UtcNow;
             existingResponse.ContentType = contentType;
-            await context.SaveChangesAsync();
+            await context.SaveChangesAsync(cancellationToken);
             return;
         }
 
@@ -34,10 +34,10 @@ public sealed class ResponseRepository(AppDbContext context)
         };
 
         context.Responses.Add(response);
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyCollection<ResponseModel>> FindResponses(Guid tenantId)
+    public async Task<IReadOnlyCollection<ResponseModel>> FindResponses(Guid tenantId, CancellationToken cancellationToken)
     {
         return await context.Responses
             .Select(r => new ResponseModel
@@ -50,10 +50,10 @@ public sealed class ResponseRepository(AppDbContext context)
                 LastModifiedAt = r.LastModifiedAt,
             })
             .Where(x => x.TenantId == tenantId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
-    public async Task<ResponseModel?> FindResponse(Guid tenantId, string path)
+    public async Task<ResponseModel?> FindResponse(Guid tenantId, string path, CancellationToken cancellationToken)
     {
         var pathNormalized = path.Trim().ToLowerInvariant();
         pathNormalized = TrimTenantId(tenantId, pathNormalized);
@@ -68,17 +68,17 @@ public sealed class ResponseRepository(AppDbContext context)
                 ContentType = r.ContentType,
                 LastModifiedAt = r.LastModifiedAt,
             })
-            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Path == pathNormalized);
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Path == pathNormalized, cancellationToken);
     }
 
-    public async Task DeleteResponse(Guid tenantId, string path)
+    public async Task DeleteResponse(Guid tenantId, string path, CancellationToken cancellationToken)
     {
         var pathNormalized = path.Trim().ToLowerInvariant();
-        var response = await context.Responses.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Path == pathNormalized);
+        var response = await context.Responses.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Path == pathNormalized, cancellationToken);
         if (response is not null)
         {
             context.Responses.Remove(response);
-            await context.SaveChangesAsync();
+            await context.SaveChangesAsync(cancellationToken);
         }
     }
 
@@ -101,6 +101,9 @@ public sealed class ResponseRepository(AppDbContext context)
             // Remove tenant ID prefix if present
             pathNormalized = pathNormalized.Substring(tenantString.Length + 1);
         }
+
+        if (string.IsNullOrEmpty(pathNormalized))
+            pathNormalized = "/";
 
         return pathNormalized;
     }

@@ -33,7 +33,7 @@ public class ConfigureResponsesModel : PageModel
         }
 
         TenantId = tenantId;
-        Responses = (await _responseRepository.FindResponses(tenantId)).ToList();
+        Responses = (await _responseRepository.FindResponses(tenantId, CancellationToken.None)).ToList();
         return Page();
     }
 
@@ -58,7 +58,7 @@ public class ConfigureResponsesModel : PageModel
 
     public async Task<IActionResult> OnPostRemoveResponseAsync(Guid tenantId, string path)
     {
-        await _responseRepository.DeleteResponse(tenantId, path);
+        await _responseRepository.DeleteResponse(tenantId, path, CancellationToken.None);
         return RedirectToPage(new { tenantId });
     }
 

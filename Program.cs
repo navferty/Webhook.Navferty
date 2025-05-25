@@ -1,10 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Webhook.Navferty.Data;
-using Webhook.Navferty.Dtos;
+using Webhook.Navferty.Requests;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +13,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IRequestRepository, RequestRepository>();
 builder.Services.AddScoped<ResponseRepository>();
+builder.Services.AddScoped<GenericRequestProcessor>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(connectionString));
@@ -65,54 +65,35 @@ app.MapGet("{tenantId:guid}/requests", async (Guid tenantId, DateTimeOffset from
 .WithName("GetRequests")
 .WithOpenApi();
 
-app.MapPost("{tenantId:guid}/responses", async (Guid tenantId, [FromBody] CreateResponseDto dto, ResponseRepository responseRepo, HttpRequest request) =>
+app.MapPost("{tenantId:guid}/responses", async (Guid tenantId, [FromBody] CreateResponseDto dto, ResponseRepository responseRepo, CancellationToken ct) =>
 {
     if (!CreateResponseValidator.Validate(dto, out var error))
         return Results.BadRequest(new { error });
-    await responseRepo.ConfigureResponse(tenantId, dto.Path ?? "/", dto.Body, dto.ContentType);
+    await responseRepo.ConfigureResponse(tenantId, dto.Path ?? "/", dto.Body, dto.ContentType, ct);
     return Results.Created($"/{tenantId}/responses", null);
 });
 
-app.MapDelete("{tenantId:guid}/responses", async (Guid tenantId, [FromQuery]string path, ResponseRepository responseRepo) =>
+app.MapDelete("{tenantId:guid}/responses", async (Guid tenantId, [FromQuery]string path, ResponseRepository responseRepo, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(path))
         return Results.BadRequest(new { error = "Path cannot be null or whitespace." });
-    await responseRepo.DeleteResponse(tenantId, path);
+    await responseRepo.DeleteResponse(tenantId, path, ct);
     return Results.Ok();
 });
 
-app.Map("{tenantId:guid}/{**catchAll}", async (Guid tenantId, string catchAll, HttpRequest request, IRequestRepository repository, ResponseRepository responseRepo, CancellationToken ct) =>
+app.MapGet("{tenantId:guid}/favicon.ico", (Guid tenantId) =>
 {
-    // Skip favicon requests
-    if (request.Path.Value?.EndsWith("favicon.ico") == true)
-        return Results.Ok();
+    return Results.File("wwwroot/favicon.ico", "image/x-icon");
+});
 
-    await repository.SaveRequest(request, tenantId, ct);
+app.Map("{tenantId:guid}", async (Guid tenantId, HttpRequest request, GenericRequestProcessor processor, CancellationToken ct) =>
+{
+    return await processor.ProcessRequest(tenantId, string.Empty, request, ct);
+});
 
-    var response = await responseRepo.FindResponse(tenantId, request.Path.Value ?? "/");
-    if (response is null)
-        return Results.Json(new { message = "No response configured for this path" });
-
-    var responseBody = response.Body ?? "No response configured for this path";
-
-    var responseMessage = new ContentResult
-    {
-        Content = responseBody,
-        ContentType = response.ContentType switch
-        {
-            ResponseContentType.Json => "application/json",
-            ResponseContentType.Text => "text/plain",
-            ResponseContentType.Html => "text/html",
-            _ => "application/octet-stream"
-        },
-        StatusCode = 200
-    };
-
-    return Results.Content(
-        content: responseMessage.Content,
-        contentType: responseMessage.ContentType,
-        contentEncoding: Encoding.UTF8,
-        statusCode: responseMessage.StatusCode.Value);
+app.Map("{tenantId:guid}/{**catchAll}", async (Guid tenantId, string catchAll, HttpRequest request, GenericRequestProcessor processor, CancellationToken ct) =>
+{
+    return await processor.ProcessRequest(tenantId, catchAll, request, ct);
 })
 .WithName("CatchAll")
 .WithOpenApi();
