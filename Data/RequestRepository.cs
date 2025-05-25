@@ -118,6 +118,7 @@ public sealed class RequestRepository(AppDbContext appDbContext)
     {
         return await appDbContext.Requests
             .Where(r => r.CreatedAt >= from && r.CreatedAt <= to && r.TenantId == tenantId)
+            .OrderByDescending(x => x.CreatedAt)
             .Select(r => new RequestDto
             {
                 Id = r.Id,
