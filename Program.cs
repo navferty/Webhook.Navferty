@@ -1,13 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Webhook.Navferty;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddEnvironmentVariables("WEBHOOK_");
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IRequestRepository, RequestRepository>();
@@ -19,8 +20,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString);
 });
 
-// Add Razor Pages services
 builder.Services.AddRazorPages();
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 var app = builder.Build();
 
@@ -28,7 +33,6 @@ using var scope = app.Services.CreateScope();
 var appDbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 appDbContext.Database.EnsureCreated();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -65,8 +69,18 @@ app.MapGet("{tenantId:guid}/requests", async (Guid tenantId, DateTimeOffset from
 
 app.MapPost("{tenantId:guid}/responses", async (Guid tenantId, [FromBody] CreateResponseDto dto, ResponseRepository responseRepo, HttpRequest request) =>
 {
-    await responseRepo.ConfigureResponse(tenantId, dto.Path ?? "/", dto.Body);
+    if (!ValidateResponse(dto, out var error))
+        return Results.BadRequest(new { error });
+    await responseRepo.ConfigureResponse(tenantId, dto.Path ?? "/", dto.Body, dto.ContentType);
     return Results.Created($"/{tenantId}/responses", null);
+});
+
+app.MapDelete("{tenantId:guid}/responses", async (Guid tenantId, [FromQuery]string path, ResponseRepository responseRepo) =>
+{
+    if (string.IsNullOrWhiteSpace(path))
+        return Results.BadRequest(new { error = "Path cannot be null or whitespace." });
+    await responseRepo.DeleteResponse(tenantId, path);
+    return Results.Ok();
 });
 
 app.Map("{tenantId:guid}/{**catchAll}", async (Guid tenantId, HttpRequest request, IRequestRepository repository, ResponseRepository responseRepo, CancellationToken ct) =>
@@ -78,14 +92,70 @@ app.Map("{tenantId:guid}/{**catchAll}", async (Guid tenantId, HttpRequest reques
     await repository.SaveRequest(request, tenantId, ct);
 
     var response = await responseRepo.FindResponse(tenantId, request.Path.Value ?? "/");
+    if (response is null)
+        return Results.Json(new { message = "No response configured for this path" });
 
-    return response is not null
-        ? Results.Json(response.Body)
-        : Results.Json(new { message = "No response configured" });
+    var responseBody = response.Body ?? "No response configured for this path";
+
+    var responseMessage = new ContentResult
+    {
+        Content = responseBody,
+        ContentType = response.ContentType switch
+        {
+            ResponseContentType.Json => "application/json",
+            ResponseContentType.Text => "text/plain",
+            ResponseContentType.Html => "text/html",
+            _ => "application/octet-stream"
+        },
+        StatusCode = 200
+    };
+
+    return Results.Content(
+        content: responseMessage.Content,
+        contentType: responseMessage.ContentType,
+        contentEncoding: Encoding.UTF8,
+        statusCode: responseMessage.StatusCode.Value);
 })
 .WithName("CatchAll")
 .WithOpenApi();
 
 app.Run();
 
-public record CreateResponseDto(string Path, string Body);
+bool ValidateResponse(CreateResponseDto dto, out string? error)
+{
+    error = null;
+
+    if (string.IsNullOrWhiteSpace(dto.Path))
+        error = "Path cannot be null or whitespace.";
+    if (!dto.Path.StartsWith('/'))
+        error = "Path should start with a slash.";
+    if (string.IsNullOrWhiteSpace(dto.Body))
+        error = "Body cannot be null or whitespace.";
+    if (!Enum.IsDefined(dto.ContentType))
+        error = "Invalid content type specified.";
+
+    switch (dto.ContentType)
+    {
+        case ResponseContentType.Json:
+            try
+            {
+                _ = JsonDocument.Parse(dto.Body);
+            }
+            catch (JsonException ex)
+            {
+                error = $"Invalid JSON body: {ex.Message}";
+            }
+            break;
+        case ResponseContentType.Text:
+        case ResponseContentType.Html:
+            // No specific validation for text or HTML
+            break;
+        default:
+            error = "Unsupported content type.";
+            break;
+    }
+
+    return error is null;
+}
+
+public record CreateResponseDto(string Path, string Body, ResponseContentType ContentType);

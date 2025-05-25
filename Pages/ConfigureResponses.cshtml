@@ -2,6 +2,7 @@
 @model Webhook.Navferty.Pages.ConfigureResponsesModel
 @using System.Net
 @using Ganss.Xss
+@using Webhook.Navferty
 
 @{
     ViewData["Title"] = "Configure Responses";
@@ -10,16 +11,36 @@
 
 <h3>Configure Responses</h3>
 
+<p>
+    You can add one or more pre-defined responses for your webhook.
+    These responses will be returned when the webhook is triggered.
+    For example, you can set up a response for a specific path like `/example` with a JSON body.
+    Then request to /{your-uuid}/example will return the configured response, where `{your-uuid}` is your tenant ID.
+</p>
+
+<p>
+    For your tenant id, the path would be <a href="/@Model.TenantId/example">/@Model.TenantId/example</a>.
+</p>
+
 <div id="responses-container">
     @foreach (var response in Model.Responses)
     {
         <div class="response-item">
             <input type="hidden" name="tenantId" value="@Model.TenantId" />
-            <input type="text" name="path" value="@response.Path" placeholder="Path" />
+            <input type="hidden" name="requestId" value="@response.Id" />
+            <input type="text" name="path" disabled value="@response.Path" placeholder="Path" />
             <textarea name="body" placeholder="JSON Body">@response.Body</textarea>
+            <select id="contentType" name="contentType" value="@response.ContentType">
+                <option value="json" @(response.ContentType == ResponseContentType.Json ? "selected" : "")>application/json</option>
+                <option value="text" @(response.ContentType == ResponseContentType.Text ? "selected" : "")>text/plain</option>
+                <option value="html" @(response.ContentType == ResponseContentType.Html ? "selected" : "")>text/html</option>
+            </select>
             <button type="button" onclick="saveResponse(this)">Save Changes</button>
             <button type="button" onclick="duplicateResponse(this)">Duplicate</button>
             <button type="button" onclick="removeResponse(this, '@response.Path')">Remove</button>
+            <button type="button" onclick="copyLink(this, '@response.Path')">Copy link</button>
+            <a href="/@Model.TenantId@response.Path" target="_blank">Link</a>
+            <span id="status"></span>
         </div>
     }
 </div>
@@ -32,28 +53,60 @@
     async function saveResponse(button) {
         var item = button.closest(".response-item");
         var tenantId = item.querySelector('input[name="tenantId"]').value;
-        var path = item.querySelector('input[name="path"]').value;
+        var pathInput = item.querySelector('input[name="path"]');
+        var path = pathInput.value.trim().toLowerCase();
         var body = item.querySelector('textarea[name="body"]').value;
+        var contentType = item.querySelector('select[name="contentType"]').value;
+
+        var items = document.querySelectorAll(".response-item input[name='path']");
+        var duplicate = false;
+        items.forEach(function(input) {
+            if (input !== pathInput && input.value.trim().toLowerCase() === path) {
+                duplicate = true;
+            }
+        });
+
+        if (duplicate) {
+            alert('A response with this path already exists.');
+            return;
+        }
 
         var response = await fetch('/@Model.TenantId/responses', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ tenantId, path, body })
+            body: JSON.stringify({ tenantId, path, body, contentType })
         });
 
         if (response.ok) {
+            pathInput.disabled = true;
+            item.querySelector('#status').textContent = '';
+            item.querySelector('button[onclick*="removeResponse"]').disabled = false;
             alert('Response saved successfully');
         } else {
-            alert('Failed to save response');
+            var errorText = await response.text();
+            alert(`Failed to save response: ${response.statusText}, ${errorText}`);
+        }
+    }
+
+    async function copyLink(button, path) {
+        var tenantId = document.querySelector('input[name="tenantId"]').value;
+        var normalizedPath = path.startsWith("/") ? path : "/" + path;
+        var fullUrl = `${window.location.origin}/${tenantId}${normalizedPath}`;
+
+        try {
+            await navigator.clipboard.writeText(fullUrl);
+            alert('Link copied to clipboard: ' + fullUrl);
+        } catch (err) {
+            alert('Failed to copy fullUrl: ' + err);
         }
     }
 
     function addNewResponse() {
         var container = document.getElementById("responses-container");
-        var newPath = "/";
-        var newBody = "{ }";
+        var newPath = "/example";
+        var newBody = "{ \"key\": \"value\" }";
 
         var newItem = document.createElement("div");
         newItem.className = "response-item";
@@ -61,9 +114,15 @@
             <input type="hidden" name="tenantId" value="@Model.TenantId" />
             <input type="text" name="path" value="${newPath}" placeholder="Path" />
             <textarea name="body" placeholder="JSON Body">${newBody}</textarea>
+            <select id="contentType" name="contentType">
+                <option value="json">application/json</option>
+                <option value="text">text/plain</option>
+                <option value="html">text/html</option>
+            </select>
             <button type="button" onclick="saveResponse(this)">Save Changes</button>
             <button type="button" onclick="duplicateResponse(this)">Duplicate</button>
-            <button type="button" onclick="removeResponse(this, '')">Remove</button>
+            <button type="button" disabled onclick="removeResponse(this, '')">Remove</button>
+            <span id="status">unsaved</span>
         `;
         container.appendChild(newItem);
     }
@@ -72,14 +131,19 @@
         var item = button.closest(".response-item");
         var container = document.getElementById("responses-container");
         var newItem = item.cloneNode(true);
+        var path = newItem.querySelector('input[name="path"]');
+        path.value += "-copy";
+        path.disabled = false;
+        var status = newItem.querySelector('#status');
+        status.textContent = 'unsaved';
+        var removeButton = newItem.querySelector('button[onclick*="removeResponse"]');
+        removeButton.disabled = false;
         container.appendChild(newItem);
     }
 
     async function removeResponse(button, path) {
         var item = button.closest(".response-item");
-        var tenantId = item.querySelector('input[name="tenantId"]').value;
-
-        var response = await fetch(`/@Model.TenantId/responses/${tenantId}/${encodeURIComponent(path)}`, {
+        var response = await fetch(`/@Model.TenantId/responses?path=${encodeURIComponent(path)}`, {
             method: 'DELETE'
         });
 

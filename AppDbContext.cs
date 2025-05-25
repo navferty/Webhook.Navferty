@@ -45,5 +45,13 @@ public sealed class ResponseModel
     public required string Path { get; init; }
 
     public required string Body { get; set; }
+    public required ResponseContentType ContentType { get; set; }
     public required DateTimeOffset LastModifiedAt { get; set; }
+}
+
+public enum ResponseContentType
+{
+    Json,
+    Text,
+    Html
 }
