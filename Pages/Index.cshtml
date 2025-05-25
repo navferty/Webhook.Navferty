@@ -1,8 +1,9 @@
 ﻿@page "/Index"
 @using Webhook.Navferty
-@inject IRequestRepository RequestRepository
 @using System.Net
 @using Ganss.Xss
+@using Webhook.Navferty.Data
+@inject IRequestRepository RequestRepository
 
 @{
     var tenantIdString = Request.Query["tenantId"];

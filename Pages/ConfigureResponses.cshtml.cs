@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Webhook.Navferty;
+using Webhook.Navferty.Data;
 
 namespace Webhook.Navferty.Pages;
 

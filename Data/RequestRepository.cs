@@ -2,7 +2,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace Webhook.Navferty;
+namespace Webhook.Navferty.Data;
 
 public interface IRequestRepository
 {

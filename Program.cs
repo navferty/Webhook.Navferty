@@ -3,7 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Webhook.Navferty;
+using Webhook.Navferty.Data;
+using Webhook.Navferty.Dtos;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,10 +16,7 @@ builder.Services.AddScoped<IRequestRepository, RequestRepository>();
 builder.Services.AddScoped<ResponseRepository>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    options.UseNpgsql(connectionString);
-});
+builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(connectionString));
 
 builder.Services.AddRazorPages();
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -69,7 +67,7 @@ app.MapGet("{tenantId:guid}/requests", async (Guid tenantId, DateTimeOffset from
 
 app.MapPost("{tenantId:guid}/responses", async (Guid tenantId, [FromBody] CreateResponseDto dto, ResponseRepository responseRepo, HttpRequest request) =>
 {
-    if (!ValidateResponse(dto, out var error))
+    if (!CreateResponseValidator.Validate(dto, out var error))
         return Results.BadRequest(new { error });
     await responseRepo.ConfigureResponse(tenantId, dto.Path ?? "/", dto.Body, dto.ContentType);
     return Results.Created($"/{tenantId}/responses", null);
@@ -83,7 +81,7 @@ app.MapDelete("{tenantId:guid}/responses", async (Guid tenantId, [FromQuery]stri
     return Results.Ok();
 });
 
-app.Map("{tenantId:guid}/{**catchAll}", async (Guid tenantId, HttpRequest request, IRequestRepository repository, ResponseRepository responseRepo, CancellationToken ct) =>
+app.Map("{tenantId:guid}/{**catchAll}", async (Guid tenantId, string catchAll, HttpRequest request, IRequestRepository repository, ResponseRepository responseRepo, CancellationToken ct) =>
 {
     // Skip favicon requests
     if (request.Path.Value?.EndsWith("favicon.ico") == true)
@@ -120,42 +118,3 @@ app.Map("{tenantId:guid}/{**catchAll}", async (Guid tenantId, HttpRequest reques
 .WithOpenApi();
 
 app.Run();
-
-bool ValidateResponse(CreateResponseDto dto, out string? error)
-{
-    error = null;
-
-    if (string.IsNullOrWhiteSpace(dto.Path))
-        error = "Path cannot be null or whitespace.";
-    if (!dto.Path.StartsWith('/'))
-        error = "Path should start with a slash.";
-    if (string.IsNullOrWhiteSpace(dto.Body))
-        error = "Body cannot be null or whitespace.";
-    if (!Enum.IsDefined(dto.ContentType))
-        error = "Invalid content type specified.";
-
-    switch (dto.ContentType)
-    {
-        case ResponseContentType.Json:
-            try
-            {
-                _ = JsonDocument.Parse(dto.Body);
-            }
-            catch (JsonException ex)
-            {
-                error = $"Invalid JSON body: {ex.Message}";
-            }
-            break;
-        case ResponseContentType.Text:
-        case ResponseContentType.Html:
-            // No specific validation for text or HTML
-            break;
-        default:
-            error = "Unsupported content type.";
-            break;
-    }
-
-    return error is null;
-}
-
-public record CreateResponseDto(string Path, string Body, ResponseContentType ContentType);

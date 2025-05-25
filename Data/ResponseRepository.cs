@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace Webhook.Navferty;
+namespace Webhook.Navferty.Data;
 
 public sealed class ResponseRepository(AppDbContext context)
 {
