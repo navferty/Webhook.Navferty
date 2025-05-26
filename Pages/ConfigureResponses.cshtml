@@ -10,6 +10,90 @@
     var sanitizer = new HtmlSanitizer();
 }
 
+@section Styles {
+    <style>
+    #responses-container {
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .response-item {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(44,62,80,0.08);
+        padding: 1.5rem 1.5rem 1rem 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 1rem 2rem;
+        position: relative;
+    }
+
+    .response-item input[type="text"],
+    .response-item textarea,
+    .response-item select {
+        font-size: 1rem;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        background: #f8f9fa;
+        color: #333;
+        margin-bottom: 0.5rem;
+        min-width: 180px;
+        max-width: 100%;
+        box-sizing: border-box;
+        transition: border-color 0.2s;
+    }
+
+    .response-item textarea {
+        min-width: 260px;
+        min-height: 60px;
+        resize: vertical;
+        font-family: 'Fira Mono', 'Consolas', 'Menlo', 'Monaco', 'Liberation Mono', monospace;
+    }
+
+    .response-item input[type="text"]:disabled {
+        background: #e9ecef;
+        color: #888;
+    }
+
+    .response-item select {
+        min-width: 140px;
+    }
+
+    .response-item button {
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .response-item a {
+        margin-left: 0.5rem;
+        font-size: 0.98em;
+    }
+
+    .response-item #status {
+        margin-left: 1rem;
+        color: #888;
+        font-size: 0.95em;
+        align-self: center;
+    }
+
+    @@media (max-width: 700px) {
+        .response-item {
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 1rem;
+        }
+        #responses-container {
+            gap: 1rem;
+        }
+    }
+    </style>
+}
+
 <h3>Configure Responses</h3>
 
 <p>
@@ -51,111 +135,113 @@
     <button type="button" onclick="addNewResponse()">Add New Response</button>
 </div>
 
-<script>
-    async function saveResponse(button) {
-        var item = button.closest(".response-item");
-        var tenantId = item.querySelector('input[name="tenantId"]').value;
-        var pathInput = item.querySelector('input[name="path"]');
-        var path = pathInput.value.trim().toLowerCase();
-        var body = item.querySelector('textarea[name="body"]').value;
-        var contentType = item.querySelector('select[name="contentType"]').value;
-        var responseCode = item.querySelector('input[name="responseCode"]').value;
+@section Scripts {
+    <script>
+        async function saveResponse(button) {
+            var item = button.closest(".response-item");
+            var tenantId = item.querySelector('input[name="tenantId"]').value;
+            var pathInput = item.querySelector('input[name="path"]');
+            var path = pathInput.value.trim().toLowerCase();
+            var body = item.querySelector('textarea[name="body"]').value;
+            var contentType = item.querySelector('select[name="contentType"]').value;
+            var responseCode = item.querySelector('input[name="responseCode"]').value;
 
-        var items = document.querySelectorAll(".response-item input[name='path']");
-        var duplicate = false;
-        items.forEach(function(input) {
-            if (input !== pathInput && input.value.trim().toLowerCase() === path) {
-                duplicate = true;
+            var items = document.querySelectorAll(".response-item input[name='path']");
+            var duplicate = false;
+            items.forEach(function(input) {
+                if (input !== pathInput && input.value.trim().toLowerCase() === path) {
+                    duplicate = true;
+                }
+            });
+
+            if (duplicate) {
+                toastr.error('A response with this path already exists.');
+                return;
             }
-        });
 
-        if (duplicate) {
-            alert('A response with this path already exists.');
-            return;
+            var response = await fetch('/@Model.TenantId/responses', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ tenantId, path, body, contentType, responseCode })
+            });
+
+            if (response.ok) {
+                pathInput.disabled = true;
+                item.querySelector('#status').textContent = '';
+                item.querySelector('button[onclick*="removeResponse"]').disabled = false;
+                toastr.success('Response saved successfully');
+            } else {
+                let data = await response.json();
+                toastr.error(data.error);
+            }
         }
 
-        var response = await fetch('/@Model.TenantId/responses', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ tenantId, path, body, contentType, responseCode })
-        });
+        async function copyLink(button, path) {
+            var tenantId = document.querySelector('input[name="tenantId"]').value;
+            var normalizedPath = path.startsWith("/") ? path : "/" + path;
+            var fullUrl = `${window.location.origin}/${tenantId}${normalizedPath}`;
 
-        if (response.ok) {
-            pathInput.disabled = true;
-            item.querySelector('#status').textContent = '';
-            item.querySelector('button[onclick*="removeResponse"]').disabled = false;
-            alert('Response saved successfully');
-        } else {
-            var errorText = await response.text();
-            alert(`Failed to save response: ${response.statusText}, ${errorText}`);
+            try {
+                await navigator.clipboard.writeText(fullUrl);
+                toastr.success('Link copied to clipboard: ' + fullUrl);
+            } catch (err) {
+                toastr.error('Failed to copy fullUrl: ' + err);
+            }
         }
-    }
 
-    async function copyLink(button, path) {
-        var tenantId = document.querySelector('input[name="tenantId"]').value;
-        var normalizedPath = path.startsWith("/") ? path : "/" + path;
-        var fullUrl = `${window.location.origin}/${tenantId}${normalizedPath}`;
+        function addNewResponse() {
+            var container = document.getElementById("responses-container");
+            var newPath = "/example";
+            var newBody = "{ \"key\": \"value\" }";
 
-        try {
-            await navigator.clipboard.writeText(fullUrl);
-            alert('Link copied to clipboard: ' + fullUrl);
-        } catch (err) {
-            alert('Failed to copy fullUrl: ' + err);
+            var newItem = document.createElement("div");
+            newItem.className = "response-item";
+            newItem.innerHTML = `
+                <input type="hidden" name="tenantId" value="@Model.TenantId" />
+                <input type="text" name="path" value="${newPath}" placeholder="Path" />
+                <textarea name="body" placeholder="JSON Body">${newBody}</textarea>
+                <select id="contentType" name="contentType">
+                    <option value="json">application/json</option>
+                    <option value="text">text/plain</option>
+                    <option value="html">text/html</option>
+                </select>
+                <input type="text" name="responseCode" value="200" placeholder="Response Code" />
+                <button type="button" onclick="saveResponse(this)">Save Changes</button>
+                <button type="button" onclick="duplicateResponse(this)">Duplicate</button>
+                <button type="button" disabled onclick="removeResponse(this, '')">Remove</button>
+                <span id="status">unsaved</span>
+            `;
+            container.appendChild(newItem);
         }
-    }
 
-    function addNewResponse() {
-        var container = document.getElementById("responses-container");
-        var newPath = "/example";
-        var newBody = "{ \"key\": \"value\" }";
-
-        var newItem = document.createElement("div");
-        newItem.className = "response-item";
-        newItem.innerHTML = `
-            <input type="hidden" name="tenantId" value="@Model.TenantId" />
-            <input type="text" name="path" value="${newPath}" placeholder="Path" />
-            <textarea name="body" placeholder="JSON Body">${newBody}</textarea>
-            <select id="contentType" name="contentType">
-                <option value="json">application/json</option>
-                <option value="text">text/plain</option>
-                <option value="html">text/html</option>
-            </select>
-            <input type="text" name="responseCode" value="200" placeholder="Response Code" />
-            <button type="button" onclick="saveResponse(this)">Save Changes</button>
-            <button type="button" onclick="duplicateResponse(this)">Duplicate</button>
-            <button type="button" disabled onclick="removeResponse(this, '')">Remove</button>
-            <span id="status">unsaved</span>
-        `;
-        container.appendChild(newItem);
-    }
-
-    function duplicateResponse(button) {
-        var item = button.closest(".response-item");
-        var container = document.getElementById("responses-container");
-        var newItem = item.cloneNode(true);
-        var path = newItem.querySelector('input[name="path"]');
-        path.value += "-copy";
-        path.disabled = false;
-        var status = newItem.querySelector('#status');
-        status.textContent = 'unsaved';
-        var removeButton = newItem.querySelector('button[onclick*="removeResponse"]');
-        removeButton.disabled = false;
-        container.appendChild(newItem);
-    }
-
-    async function removeResponse(button, path) {
-        var item = button.closest(".response-item");
-        var response = await fetch(`/@Model.TenantId/responses?path=${encodeURIComponent(path)}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            item.remove();
-            alert('Response removed successfully');
-        } else {
-            alert('Failed to remove response');
+        function duplicateResponse(button) {
+            var item = button.closest(".response-item");
+            var container = document.getElementById("responses-container");
+            var newItem = item.cloneNode(true);
+            var path = newItem.querySelector('input[name="path"]');
+            path.value += "-copy";
+            path.disabled = false;
+            var status = newItem.querySelector('#status');
+            status.textContent = 'unsaved';
+            var removeButton = newItem.querySelector('button[onclick*="removeResponse"]');
+            removeButton.disabled = false;
+            container.appendChild(newItem);
         }
-    }
-</script>
+
+        async function removeResponse(button, path) {
+            var item = button.closest(".response-item");
+            var response = await fetch(`/@Model.TenantId/responses?path=${encodeURIComponent(path)}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                item.remove();
+                toastr.success('Response removed successfully');
+            } else {
+                toastr.error('Failed to remove response');
+            }
+        }
+    </script>
+}

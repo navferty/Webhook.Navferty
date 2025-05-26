@@ -28,7 +28,13 @@
     var sanitizer = new HtmlSanitizer();
 }
 
-<h3>Request Details</h3>
+<h3>
+    Request
+    @if (request != null)
+    {
+        <span class="badge bg-secondary">#@request.Id</span>
+    }
+</h3>
 
 @if (request == null)
 {
@@ -37,29 +43,27 @@
 else
 {
     <dl class="row">
-        <dt class="col-sm-2">Id</dt>
-        <dd class="col-sm-10">@request.Id</dd>
 
         <dt class="col-sm-2">IP Address</dt>
-        <dd class="col-sm-10">@request.IpAddress</dd>
+        <dd class="col-sm-10"><pre>@request.IpAddress</pre></dd>
 
         <dt class="col-sm-2">Path</dt>
-        <dd class="col-sm-10">@sanitizer.Sanitize(WebUtility.UrlDecode(request.Path))</dd>
+        <dd class="col-sm-10"><pre>@sanitizer.Sanitize(WebUtility.UrlDecode(request.Path))</pre></dd>
 
         <dt class="col-sm-2">Method</dt>
-        <dd class="col-sm-10">@request.Method</dd>
+        <dd class="col-sm-10"><pre>@request.Method</pre></dd>
 
         <dt class="col-sm-2">Headers</dt>
         <dd class="col-sm-10"><pre>@sanitizer.Sanitize(request.Headers)</pre></dd>
 
         <dt class="col-sm-2">Query String</dt>
-        <dd class="col-sm-10">@sanitizer.Sanitize(WebUtility.UrlDecode(request.QueryString))</dd>
+        <dd class="col-sm-10"><pre>@sanitizer.Sanitize(WebUtility.UrlDecode(request.QueryString))</pre></dd>
 
         <dt class="col-sm-2">Body @MapContentType(request.ContentType)</dt>
         <dd class="col-sm-10"><pre>@sanitizer.Sanitize(request.Body)</pre></dd>
 
         <dt class="col-sm-2">Created At</dt>
-        <dd class="col-sm-10">@request.CreatedAt</dd>
+        <dd class="col-sm-10"><pre>@request.CreatedAt</pre></dd>
     </dl>
 }
 

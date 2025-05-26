@@ -1,10 +1,9 @@
 ﻿@page "/Index"
-@using Webhook.Navferty
 @using System.Net
 @using Ganss.Xss
+@using Webhook.Navferty
 @using Webhook.Navferty.Data
 @inject IRequestRepository RequestRepository
-
 @{
     var tenantIdString = Request.Query["tenantId"];
     if (string.IsNullOrWhiteSpace(tenantIdString)
@@ -18,288 +17,69 @@
     var requests = await RequestRepository.GetRequests(tenantId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
     var sanitizer = new HtmlSanitizer();
 }
+@section Styles {
+    <style>
+        /* TODO */
+    </style>
+}
 
+    <h1>Webhook</h1>
 
-<!-- Prism.js core -->
-<!-- script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-core.min.js"></script -->
-<!-- Prism.js main build (includes core and basic language support) -->
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/prism.min.js"></script>
+    <p>
+        This is a simple webhook service that logs all incoming requests.
+    </p>
 
-<!-- Prism.js CSS -->
-<link href="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
-<!-- Prism.js language components -->
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-csharp.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-powershell.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-bash.min.js"></script>
-<!-- Prism.js autoloader (optional, for more languages) -->
-<!-- script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/plugins/autoloader/prism-autoloader.min.js"></script -->
+    <p>
+        To make a request, use the following base URL:
+    </p>
 
-<style>
-    body {
-        font-family: 'Segoe UI', Arial, sans-serif;
-        background-color: #f8f9fa;
-        margin: 50px;
-        padding: 0 0 40px 0;
-    }
+    <div class="input-group mb-3">
+        <input type="text" class="form-control" id="baseUrl" value="https://webhook.navferty.com/@tenantId" readonly style="background-color: lightgray;">
+        <button class="btn btn-outline-secondary" type="button" id="copyButton" onclick="copyToClipboard()">Copy</button>
+    </div>
 
-    h1 {
-        color: #2c3e50;
-        margin-top: 32px;
-        margin-bottom: 16px;
-        font-size: 2.2rem;
-        letter-spacing: 1px;
-    }
+    <p>
+        This URL contains your unique ID, which is <strong>@tenantIdString</strong>.
+        You can use this URL to make requests to the webhook service.
+    </p>
 
-    p {
-        color: #444;
-        font-size: 1.05rem;
-        margin-bottom: 1rem;
-    }
+    <p>
+        You can construct any url and use any HTTP method, for example:
+        <code>POST https://webhook.navferty.com/@tenantId/any/path/you/want</code>
+    </p>
 
-    .input-group {
-        display: flex;
-        max-width: 600px;
-        margin-bottom: 1.5rem;
-    }
+    <p>
+        Below are sample scripts for curl, PowerShell and C# to make a request to the webhook service:
+        <details>
+            <summary>Sample Scripts</summary>
 
-    .form-control {
-        border: 1px solid #ced4da;
-        border-radius: 4px 0 0 4px;
-        padding: 0.5rem 1rem;
-        font-size: 1rem;
-        background-color: #e9ecef;
-        color: #333;
-        flex: 1 1 auto;
-        transition: border-color 0.2s;
-    }
-
-    .form-control:focus {
-        border-color: #007bff;
-        outline: none;
-    }
-
-    .btn {
-        border: 1px solid #007bff;
-        background-color: #007bff;
-        color: #fff;
-        border-radius: 0 4px 4px 0;
-        padding: 0.5rem 1.2rem;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: background 0.2s, color 0.2s;
-    }
-
-    .btn:active, .btn:focus {
-        background-color: #0056b3;
-        color: #fff;
-    }
-
-    .btn.btn-outline-secondary {
-        background: #fff;
-        color: #007bff;
-        border: 1px solid #007bff;
-    }
-
-    .btn.btn-outline-secondary:active, .btn.btn-outline-secondary:focus {
-        background: #007bff;
-        color: #fff;
-    }
-
-    table.table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 1.5rem;
-        background: #fff;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
-
-    table.table th, table.table td {
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid #e3e3e3;
-        text-align: left;
-    }
-
-    table.table th {
-        background: #f1f3f6;
-        color: #333;
-        font-weight: 600;
-    }
-
-    table.table tr:hover {
-        background: #f6faff;
-    }
-
-    code {
-        background: #f1f3f6;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 0.98em;
-        color: #2c3e50;
-    }
-
-    a {
-        color: #007bff;
-        text-decoration: none;
-        transition: color 0.2s;
-    }
-
-    a:hover {
-        color: #0056b3;
-        text-decoration: underline;
-    }
-
-    pre, code {
-        font-family: 'Fira Mono', 'Consolas', 'Menlo', 'Monaco', 'Liberation Mono', monospace;
-    }
-
-    pre {
-        background: #23272e;
-        color: #f8f8f2;
-        border-radius: 6px;
-        padding: 1em 1.2em;
-        margin: 1em 0;
-        overflow-x: auto;
-        font-size: 1em;
-        line-height: 1.5;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-
-    code {
-        background: #f1f3f6;
-        color: #2c3e50;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 0.98em;
-    }
-
-    pre code {
-        background: none;
-        color: inherit;
-        padding: 0;
-        border-radius: 0;
-        font-size: inherit;
-    }
-
-    .code-block {
-        position: relative;
-        margin-bottom: 1.5em;
-    }
-    .copy-code-btn {
-        position: absolute;
-        top: 10px;
-        right: 18px;
-        background: #007bff;
-        color: #fff;
-        border: none;
-        border-radius: 4px;
-        padding: 4px 12px;
-        font-size: 0.95em;
-        cursor: pointer;
-        opacity: 0.85;
-        transition: opacity 0.2s;
-        z-index: 2;
-    }
-    .copy-code-btn:hover, .copy-code-btn:focus {
-        opacity: 1;
-        background: #0056b3;
-    }
-    .code-block pre {
-        margin-top: 0.5em;
-    }
-
-    details {
-        background: #f1f3f6;
-        border-radius: 8px;
-        box-shadow: 0 1px 4px rgba(44,62,80,0.06);
-        margin: 1.5em 0;
-        padding: 0.5em 1.2em 1em 1.2em;
-        transition: box-shadow 0.2s;
-    }
-
-        details[open] {
-            box-shadow: 0 2px 8px rgba(44,62,80,0.10);
-            background: #e9ecef;
-        }
-
-    summary {
-        font-weight: 600;
-        font-size: 1.1em;
-        color: #2c3e50;
-        cursor: pointer;
-        outline: none;
-        padding: 0.5em 1em;
-        margin: -0.5em -1.2em 0 -1.2em;
-        border-radius: 8px 8px 0 0;
-        background: none;
-        transition: background 0.2s;
-    }
-
-        summary:hover, summary:focus {
-            background: #dde3ea;
-        }
-
-    details > *:not(summary) {
-        margin-top: 0.8em;
-    }
-
-</style>
-<h1>Webhook</h1>
-
-<p>
-    This is a simple webhook service that logs all incoming requests.
-</p>
-
-<p>
-    To make a request, use the following base URL:
-</p>
-
-<div class="input-group mb-3">
-    <input type="text" class="form-control" id="baseUrl" value="https://webhook.navferty.com/@tenantId" readonly style="background-color: lightgray;">
-    <button class="btn btn-outline-secondary" type="button" id="copyButton" onclick="copyToClipboard()">Copy</button>
-</div>
-
-<p>
-    This URL contains your unique ID, which is <strong>@tenantIdString</strong>.
-    You can use this URL to make requests to the webhook service.
-</p>
-
-<p>
-    You can construct any url and use any HTTP method, for example:
-    <code>POST https://webhook.navferty.com/@tenantId/any/path/you/want</code>
-</p>
-
-<p>
-    Below are sample scripts for curl, PowerShell and C# to make a request to the webhook service:
-    <details>
-        <summary>Sample Scripts</summary>
-
-        <h3>cURL</h3>
-        <div class="code-block">
-            <button type="button" class="copy-code-btn" onclick="copyCode(this)">Copy</button>
-            <pre><code class="language-bash">
+            <h3>cURL</h3>
+            <div class="code-block">
+                <button type="button" class="copy-code-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code class="language-bash">
 curl -X POST "https://webhook.navferty.com/@tenantId/example" \
-  -H "Content-Type: application/json" \
-  -d '{"key":"value"}'
-            </code></pre>
-        </div>
+    -H "Content-Type: application/json" \
+    -d '{"key":"value"}'
+                </code></pre>
+            </div>
 
-        <h3>PowerShell</h3>
-        <div class="code-block">
-            <button type="button" class="copy-code-btn" onclick="copyCode(this)">Copy</button>
-            <pre><code class="language-powershell">
+            <h3>PowerShell</h3>
+            <div class="code-block">
+                <button type="button" class="copy-code-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code class="language-powershell">
 $tenantId = "@tenantIdString"
 $url = "https://webhook.navferty.com/$tenantId/example"
 $body = @@{
     key = "value"
 } | ConvertTo-Json
 Invoke-RestMethod -Uri $url -Method Post -Body $body -ContentType "application/json"
-            </code></pre>
-        </div>
+                </code></pre>
+            </div>
 
-        <h3>C#</h3>
-        <div class="code-block">
-            <button type="button" class="copy-code-btn" onclick="copyCode(this)">Copy</button>
-            <pre><code class="language-csharp">
+            <h3>C#</h3>
+            <div class="code-block">
+                <button type="button" class="copy-code-btn" onclick="copyCode(this)">Copy</button>
+                <pre><code class="language-csharp">
 using System;
 using System.Net.Http;
 using System.Text;
@@ -320,96 +100,98 @@ class Program
         }
     }
 }
-            </code></pre>
-        </div>
-    </details>
-</p>
+                </code></pre>
+            </div>
+        </details>
+    </p>
 
-<p>
-    The service will log the request, including the path, method, query string, headers, and body.
-    You can view the recent requests below. Keep the Id @tenantId to view your requests.
-</p>
+    <p>
+        The service will log the request, including the path, method, query string, headers, and body.
+        You can view the recent requests below. Keep the Id @tenantId to view your requests.
+    </p>
 
-<p>
-    You can also configure responses for specific paths, which will return pre-defined responses
-    when the webhook is triggered. Response can be configured to return JSON, plain text, or HTML content.
-    <a href="/ConfigureResponses?tenantId=@tenantId">Configure Responses</a>
-</p>
+    <p>
+        You can also configure responses for specific paths, which will return pre-defined responses
+        when the webhook is triggered. Response can be configured to return JSON, plain text, or HTML content.
+        <a href="/ConfigureResponses?tenantId=@tenantId">Configure Responses</a>
+    </p>
 
-<h3>Recent Web Requests</h3>
+    <h3>Recent Web Requests</h3>
 
-@if (requests == null || !requests.Any())
-{
-    <p>No requests found.</p>
-}
-else
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>Method</th>
-                <th>Path</th>
-                <th>Created At</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var request in requests)
-            {
+    @if (requests == null || !requests.Any())
+    {
+        <p>No requests recorded yet.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
                 <tr>
-                    <td><a href="/requestdetails/@request.Id?tenantId=@tenantId">@request.Id</a></td>
-                    <td>@request.Method</td>
-                    <td>@sanitizer.Sanitize(WebUtility.UrlDecode(request.Path))</td>
-                    <td>@request.CreatedAt</td>
+                    <th>Id</th>
+                    <th>Method</th>
+                    <th>Path</th>
+                    <th>Created At</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var request in requests)
+                {
+                    <tr>
+                        <td><a href="/requestdetails/@request.Id?tenantId=@tenantId">@request.Id</a></td>
+                        <td>@request.Method</td>
+                        <td>@sanitizer.Sanitize(WebUtility.UrlDecode(request.Path))</td>
+                        <td>@request.CreatedAt</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
 }
 
-<script>
-    function copyToClipboard() {
-        var copyText = document.getElementById("baseUrl");
-        var actualUrl = copyText.value.replace("@tenantId", "@tenantIdString");
-        navigator.clipboard.writeText(actualUrl).then(function() {
-            var copyButton = document.getElementById("copyButton");
-            copyButton.textContent = "Copied";
-            setTimeout(function() {
-                copyButton.textContent = "Copy";
-            }, 5000);
-        }, function(err) {
-            console.error("Could not copy text: ", err);
-        });
-    }
+@section Scripts {
+    <script>
+        function copyToClipboard() {
+            var copyText = document.getElementById("baseUrl");
+            var actualUrl = copyText.value.replace("@tenantId", "@tenantIdString");
+            navigator.clipboard.writeText(actualUrl).then(function() {
+                var copyButton = document.getElementById("copyButton");
+                copyButton.textContent = "Copied";
+                setTimeout(function() {
+                    copyButton.textContent = "Copy";
+                }, 5000);
+            }, function(err) {
+                console.error("Could not copy text: ", err);
+            });
+        }
 
-    function copyCode(btn) {
-        var pre = btn.parentElement.querySelector('pre');
-        var code = pre.innerText;
-        navigator.clipboard.writeText(code).then(function() {
-            btn.textContent = "Copied!";
-            setTimeout(function() {
-                btn.textContent = "Copy";
-            }, 2000);
-        }, function(err) {
-            btn.textContent = "Failed";
-            setTimeout(function() {
-                btn.textContent = "Copy";
-            }, 2000);
-        });
-    }
+        function copyCode(btn) {
+            var pre = btn.parentElement.querySelector('pre');
+            var code = pre.innerText;
+            navigator.clipboard.writeText(code).then(function() {
+                btn.textContent = "Copied!";
+                setTimeout(function() {
+                    btn.textContent = "Copy";
+                }, 2000);
+            }, function(err) {
+                btn.textContent = "Failed";
+                setTimeout(function() {
+                    btn.textContent = "Copy";
+                }, 2000);
+            });
+        }
 
-    function adjustInputWidth() {
-        var input = document.getElementById("baseUrl");
-        var tempSpan = document.createElement("span");
-        tempSpan.style.visibility = "hidden";
-        tempSpan.style.whiteSpace = "nowrap";
-        tempSpan.style.fontSize = getComputedStyle(input).fontSize;
-        tempSpan.style.fontFamily = getComputedStyle(input).fontFamily;
-        tempSpan.innerText = input.value;
-        document.body.appendChild(tempSpan);
-        input.style.width = (tempSpan.offsetWidth + 15) + "px";
-        document.body.removeChild(tempSpan);
-    }
+        function adjustInputWidth() {
+            var input = document.getElementById("baseUrl");
+            var tempSpan = document.createElement("span");
+            tempSpan.style.visibility = "hidden";
+            tempSpan.style.whiteSpace = "nowrap";
+            tempSpan.style.fontSize = getComputedStyle(input).fontSize;
+            tempSpan.style.fontFamily = getComputedStyle(input).fontFamily;
+            tempSpan.innerText = input.value;
+            document.body.appendChild(tempSpan);
+            input.style.width = (tempSpan.offsetWidth + 15) + "px";
+            document.body.removeChild(tempSpan);
+        }
 
-    document.addEventListener("DOMContentLoaded", adjustInputWidth);
-</script>
+        document.addEventListener("DOMContentLoaded", adjustInputWidth);
+    </script>
+}
