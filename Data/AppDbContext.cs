@@ -28,6 +28,7 @@ public sealed class RequestModel
     public required string Headers { get; set; }
     public required string Body { get; set; }
     public required RequestContentType ContentType { get; set; }
+    public required string? ContentTypeRaw { get; set; }
     public required DateTimeOffset CreatedAt { get; set; }
 }
 

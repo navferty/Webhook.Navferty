@@ -96,6 +96,7 @@ public sealed class RequestRepository(AppDbContext appDbContext)
             Headers = headers.ToString(),
             Body = body,
             ContentType = contentType,
+            ContentTypeRaw = request.ContentType,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -139,6 +140,7 @@ public sealed class RequestRepository(AppDbContext appDbContext)
                 Headers = r.Headers,
                 Body = r.Body,
                 ContentType = r.ContentType,
+                ContentTypeRaw = r.ContentTypeRaw,
                 CreatedAt = r.CreatedAt
             })
             .AsNoTracking()
