@@ -16,10 +16,17 @@ public interface IRequestRepository
 public sealed class RequestRepository(AppDbContext appDbContext)
     : IRequestRepository
 {
+    private static readonly JsonSerializerOptions RequestJsonSerializerOptions = new()
+    {
+        WriteIndented = true,
+    };
+
     public async Task SaveRequest(HttpRequest request, Guid tenantId, CancellationToken cancellationToken)
     {
+        var contentType = GetRequestContentType(request);
+
         string body;
-        if (request.HasFormContentType)
+        if (contentType == RequestContentType.Form || request.HasFormContentType)
         {
             var form = await request.ReadFormAsync(cancellationToken);
             var sb = new StringBuilder();
@@ -50,11 +57,11 @@ public sealed class RequestRepository(AppDbContext appDbContext)
 
             body = sb.ToString();
         }
-        else if (request.ContentType?.StartsWith("application/json") == true)
+        else if (contentType == RequestContentType.Json)
         {
             using var reader = new StreamReader(request.Body);
             var json = await reader.ReadToEndAsync(cancellationToken);
-            body = JsonSerializer.Serialize(JsonDocument.Parse(json), new JsonSerializerOptions { WriteIndented = true });
+            body = JsonSerializer.Serialize(JsonDocument.Parse(json), RequestJsonSerializerOptions);
         }
         else
         {
@@ -88,11 +95,34 @@ public sealed class RequestRepository(AppDbContext appDbContext)
             QueryString = request.QueryString.ToString(),
             Headers = headers.ToString(),
             Body = body,
+            ContentType = contentType,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
         appDbContext.Requests.Add(requestModel);
         await appDbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static RequestContentType GetRequestContentType(HttpRequest request)
+    {
+        var contentType = request.ContentType?.ToLowerInvariant();
+        if (string.IsNullOrEmpty(contentType))
+            return RequestContentType.None;
+
+        if (contentType.StartsWith("application/json"))
+            return RequestContentType.Json;
+
+        if (contentType.StartsWith("application/x-www-form-urlencoded")
+            || contentType.StartsWith("multipart/form-data"))
+            return RequestContentType.Form;
+
+        if (contentType.StartsWith("text/plain"))
+            return RequestContentType.Text;
+
+        if (contentType.StartsWith("text/html"))
+            return RequestContentType.Html;
+
+        return RequestContentType.Text;
     }
 
     public async Task<RequestModel?> GetRequest(Guid tenantId, Guid requestId)
@@ -108,6 +138,7 @@ public sealed class RequestRepository(AppDbContext appDbContext)
                 QueryString = r.QueryString,
                 Headers = r.Headers,
                 Body = r.Body,
+                ContentType = r.ContentType,
                 CreatedAt = r.CreatedAt
             })
             .AsNoTracking()

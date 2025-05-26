@@ -27,6 +27,7 @@ public sealed class RequestModel
     public required string QueryString { get; set; }
     public required string Headers { get; set; }
     public required string Body { get; set; }
+    public required RequestContentType ContentType { get; set; }
     public required DateTimeOffset CreatedAt { get; set; }
 }
 
@@ -48,6 +49,15 @@ public sealed class ResponseModel
     public required ResponseContentType ContentType { get; set; }
     public required int ResponseCode { get; set; }
     public required DateTimeOffset LastModifiedAt { get; set; }
+}
+
+public enum RequestContentType
+{
+    None,
+    Json,
+    Form,
+    Text,
+    Html
 }
 
 public enum ResponseContentType
