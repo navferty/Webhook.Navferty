@@ -16,6 +16,8 @@
     ViewData["Title"] = "Recent Web Requests";
     var requests = await RequestRepository.GetRequests(tenantId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
     var sanitizer = new HtmlSanitizer();
+
+    var baseUrl = $"{Request.Scheme}://{Request.Host}";
 }
 @section Styles {
     <style>
@@ -34,7 +36,7 @@
     </p>
 
     <div class="input-group mb-3">
-        <input type="text" class="form-control" id="baseUrl" value="https://webhook.navferty.com/@tenantId" readonly style="background-color: lightgray;">
+        <input type="text" class="form-control" id="baseUrl" value="@baseUrl/@tenantId" readonly style="background-color: lightgray;">
         <button class="btn btn-outline-secondary" type="button" id="copyButton" onclick="copyToClipboard()">Copy</button>
     </div>
 
@@ -45,7 +47,7 @@
 
     <p>
         You can construct any url and use any HTTP method, for example:
-        <code>POST https://webhook.navferty.com/@tenantId/any/path/you/want</code>
+        <code>POST @baseUrl/@tenantId/any/path/you/want</code>
     </p>
 
     <p>
@@ -57,7 +59,7 @@
             <div class="code-block">
                 <button type="button" class="copy-code-btn" onclick="copyCode(this)">Copy</button>
                 <pre><code class="language-bash">
-curl -X POST "https://webhook.navferty.com/@tenantId/example" \
+curl -X POST "@baseUrl/@tenantId/example" \
     -H "Content-Type: application/json" \
     -d '{"key":"value"}'
                 </code></pre>
@@ -68,7 +70,7 @@ curl -X POST "https://webhook.navferty.com/@tenantId/example" \
                 <button type="button" class="copy-code-btn" onclick="copyCode(this)">Copy</button>
                 <pre><code class="language-powershell">
 $tenantId = "@tenantIdString"
-$url = "https://webhook.navferty.com/$tenantId/example"
+$url = "@baseUrl/$tenantId/example"
 $body = @@{
     key = "value"
 } | ConvertTo-Json
@@ -90,7 +92,7 @@ class Program
     static async Task Main(string[] args)
     {
         var tenantId = "@tenantIdString";
-        var url = $"https://webhook.navferty.com/{tenantId}/example";
+        var url = $"@baseUrl/{tenantId}/example";
         var content = new StringContent("{\"key\":\"value\"}", Encoding.UTF8, "application/json");
         using (var client = new HttpClient())
         {
