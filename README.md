@@ -2,10 +2,16 @@
 
 Simple web application for testing web requests.
 
-Any request to the server will be saved in the database and displayed at [webhook.navferty.com](https://webhook.navferty.com/).)
+## Overview
 
-In [ConfigureResponses](https://webhook.navferty.com/ConfigureResponses) page you can add pre-configured responses for specific URLs.
-This is useful for testing webhooks and other integrations.
+Any HTTP request received by the server will be saved in the database and displayed at [webhook.navferty.com](https://webhook.navferty.com/).
+Base URL for requests includes unique identifier for each user, so that requests are stored separately.
+
+This tool is useful for testing webhooks and other integrations. If you need to test your application,
+which sends HTTP requests to external services, or if you want to capture requests and responses
+for debugging purposes, you can use this tool.
+
+The application allows you to add pre-configured responses for specific URLs.
 
 ## Usage
 
