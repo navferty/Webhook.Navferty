@@ -4,7 +4,7 @@ namespace Webhook.Navferty.Data;
 
 public sealed class ResponseRepository(AppDbContext context)
 {
-    public async Task ConfigureResponse(Guid tenantId, string path, string body, ResponseContentType contentType, CancellationToken cancellationToken)
+    public async Task ConfigureResponse(Guid tenantId, string path, string body, ResponseContentType contentType, int responseCode, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(body))
             throw new ArgumentException("Value cannot be null or whitespace.", nameof(body));
@@ -20,6 +20,7 @@ public sealed class ResponseRepository(AppDbContext context)
             existingResponse.Body = body;
             existingResponse.LastModifiedAt = DateTimeOffset.UtcNow;
             existingResponse.ContentType = contentType;
+            existingResponse.ResponseCode = responseCode;
             await context.SaveChangesAsync(cancellationToken);
             return;
         }
@@ -30,6 +31,7 @@ public sealed class ResponseRepository(AppDbContext context)
             Path = normalizedPath,
             Body = body,
             ContentType = contentType,
+            ResponseCode = responseCode,
             LastModifiedAt = DateTimeOffset.UtcNow,
         };
 
@@ -47,6 +49,7 @@ public sealed class ResponseRepository(AppDbContext context)
                 Path = r.Path,
                 Body = r.Body,
                 ContentType = r.ContentType,
+                ResponseCode = r.ResponseCode,
                 LastModifiedAt = r.LastModifiedAt,
             })
             .Where(x => x.TenantId == tenantId)
@@ -66,6 +69,7 @@ public sealed class ResponseRepository(AppDbContext context)
                 Path = r.Path,
                 Body = r.Body,
                 ContentType = r.ContentType,
+                ResponseCode = r.ResponseCode,
                 LastModifiedAt = r.LastModifiedAt,
             })
             .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Path == pathNormalized, cancellationToken);

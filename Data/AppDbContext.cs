@@ -46,6 +46,7 @@ public sealed class ResponseModel
 
     public required string Body { get; set; }
     public required ResponseContentType ContentType { get; set; }
+    public required int ResponseCode { get; set; }
     public required DateTimeOffset LastModifiedAt { get; set; }
 }
 

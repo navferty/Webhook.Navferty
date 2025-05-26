@@ -36,6 +36,7 @@
                 <option value="text" @(response.ContentType == ResponseContentType.Text ? "selected" : "")>text/plain</option>
                 <option value="html" @(response.ContentType == ResponseContentType.Html ? "selected" : "")>text/html</option>
             </select>
+            <input type="text" name="responseCode" value="@response.ResponseCode" placeholder="Response Code" />
             <button type="button" onclick="saveResponse(this)">Save Changes</button>
             <button type="button" onclick="duplicateResponse(this)">Duplicate</button>
             <button type="button" onclick="removeResponse(this, '@response.Path')">Remove</button>
@@ -58,6 +59,7 @@
         var path = pathInput.value.trim().toLowerCase();
         var body = item.querySelector('textarea[name="body"]').value;
         var contentType = item.querySelector('select[name="contentType"]').value;
+        var responseCode = item.querySelector('input[name="responseCode"]').value;
 
         var items = document.querySelectorAll(".response-item input[name='path']");
         var duplicate = false;
@@ -77,7 +79,7 @@
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ tenantId, path, body, contentType })
+            body: JSON.stringify({ tenantId, path, body, contentType, responseCode })
         });
 
         if (response.ok) {
@@ -120,6 +122,7 @@
                 <option value="text">text/plain</option>
                 <option value="html">text/html</option>
             </select>
+            <input type="text" name="responseCode" value="200" placeholder="Response Code" />
             <button type="button" onclick="saveResponse(this)">Save Changes</button>
             <button type="button" onclick="duplicateResponse(this)">Duplicate</button>
             <button type="button" disabled onclick="removeResponse(this, '')">Remove</button>

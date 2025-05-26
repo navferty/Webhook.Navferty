@@ -69,7 +69,7 @@ app.MapPost("{tenantId:guid}/responses", async (Guid tenantId, [FromBody] Create
 {
     if (!CreateResponseValidator.Validate(dto, out var error))
         return Results.BadRequest(new { error });
-    await responseRepo.ConfigureResponse(tenantId, dto.Path ?? "/", dto.Body, dto.ContentType, ct);
+    await responseRepo.ConfigureResponse(tenantId, dto.Path ?? "/", dto.Body, dto.ContentType, dto.ResponseCode, ct);
     return Results.Created($"/{tenantId}/responses", null);
 });
 

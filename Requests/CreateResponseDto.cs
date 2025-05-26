@@ -3,7 +3,7 @@ using Webhook.Navferty.Data;
 
 namespace Webhook.Navferty.Requests;
 
-public record CreateResponseDto(string Path, string Body, ResponseContentType ContentType);
+public record CreateResponseDto(string Path, string Body, ResponseContentType ContentType, int ResponseCode);
 
 public class CreateResponseValidator
 {
@@ -14,8 +14,10 @@ public class CreateResponseValidator
             error = "Path cannot be null or whitespace.";
         else if (!dto.Path.StartsWith('/'))
             error = "Path should start with a slash.";
-        else if (string.IsNullOrWhiteSpace(dto.Body))
-            error = "Body cannot be null or whitespace.";
+        else if (dto.ResponseCode < 100 || dto.ResponseCode > 599)
+            error = "Response code must be between 100 and 599.";
+        else if (dto.ContentType == ResponseContentType.Json && string.IsNullOrWhiteSpace(dto.Body))
+            error = "Body cannot be null or whitespace for JSON content type.";
         else if (!Enum.IsDefined(dto.ContentType))
             error = "Invalid content type specified.";
         else
