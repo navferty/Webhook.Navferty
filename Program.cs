@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Webhook.Navferty;
 using Webhook.Navferty.Data;
 using Webhook.Navferty.Requests;
 
@@ -14,6 +15,11 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IRequestRepository, RequestRepository>();
 builder.Services.AddScoped<ResponseRepository>();
 builder.Services.AddScoped<GenericRequestProcessor>();
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton(TimeProvider.System);
+
+builder.Services.Configure<RequestRateLimitingOptions>(
+    builder.Configuration.GetSection(RequestRateLimitingOptions.SectionName));
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(connectionString));
@@ -39,6 +45,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseRouting();
+
+app.UseMiddleware<RequestRateLimitingMiddleware>();
 
 app.MapRazorPages();
 
