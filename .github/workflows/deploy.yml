@@ -26,7 +26,7 @@ jobs:
 
     - name: Build Docker images
       run: |
-        docker build -t webhook:latest .
+        docker build -t webhook:latest ./src/Webhook.Navferty/
 
     - name: Tag Docker image with commit SHA
       id: docker_tag
