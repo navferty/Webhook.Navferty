@@ -30,6 +30,7 @@ public sealed class RequestModel
     public required RequestContentType ContentType { get; set; }
     public required string? ContentTypeRaw { get; set; }
     public required DateTimeOffset CreatedAt { get; set; }
+    public required string RawRequest { get; set; }
 }
 
 public sealed class RequestDto

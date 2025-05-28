@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Json;
+using Webhook.Navferty.Requests;
 
 namespace Webhook.Navferty.Data;
 
@@ -13,7 +14,7 @@ public interface IRequestRepository
     Task<IEnumerable<RequestDto>> GetRequests(Guid tenantId, DateTimeOffset from, DateTimeOffset to);
 }
 
-public sealed class RequestRepository(AppDbContext appDbContext)
+public sealed class RequestRepository(AppDbContext appDbContext, TimeProvider timeProvider)
     : IRequestRepository
 {
     private static readonly JsonSerializerOptions RequestJsonSerializerOptions = new()
@@ -23,6 +24,8 @@ public sealed class RequestRepository(AppDbContext appDbContext)
 
     public async Task SaveRequest(HttpRequest request, Guid tenantId, CancellationToken cancellationToken)
     {
+        var rawMessageHead = request.ReconstructRawHttpRequest();
+
         var contentType = GetRequestContentType(request);
 
         string body;
@@ -97,7 +100,8 @@ public sealed class RequestRepository(AppDbContext appDbContext)
             Body = body,
             ContentType = contentType,
             ContentTypeRaw = request.ContentType,
-            CreatedAt = DateTimeOffset.UtcNow
+            RawRequest = rawMessageHead,
+            CreatedAt = timeProvider.GetUtcNow(),
         };
 
         appDbContext.Requests.Add(requestModel);
@@ -141,6 +145,7 @@ public sealed class RequestRepository(AppDbContext appDbContext)
                 Body = r.Body,
                 ContentType = r.ContentType,
                 ContentTypeRaw = r.ContentTypeRaw,
+                RawRequest = r.RawRequest,
                 CreatedAt = r.CreatedAt
             })
             .AsNoTracking()
